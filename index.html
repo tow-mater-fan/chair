@@ -269,6 +269,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script>
 const STORAGE_KEY = 'chaircheck:data:v2';
 const COLORS = ['#C0392B','#2471A3','#1E8449','#B7950B','#7D3C98','#CA6F1E','#117864','#943126','#2E4053','#AF601A','#6C3483','#196F3D'];
@@ -277,12 +279,37 @@ const SUPABASE_URL = 'https://icckllvlopvsbbcfiiml.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_BlqQGzwRRO6ToiX5xcGuKA_DfsXI3fA';
 const BACKUP_TABLE = 'chair_check_backups';
 
+// ---- Firebase config ----
+// Get these from: Firebase Console → Project settings → General → Your apps → Web app
+const firebaseConfig = {
+  apiKey: "AIzaSyA2YHOtIv-89RF39Ebcv5sMFfrN86IOUAw",
+  authDomain: "chairsort.firebaseapp.com",
+  projectId: "chairsort",
+  appId: "1:728827413651:web:4c422b008c8ff3962cf966"
+};
+
+let firebaseReady = false;
+try{
+  if(typeof firebase !== 'undefined' && firebaseConfig.apiKey !== '__FIREBASE_API_KEY__'){
+    firebase.initializeApp(firebaseConfig);
+    firebaseReady = true;
+  }
+}catch(e){ console.error('Firebase init failed', e); }
+
+// Supabase's Third-Party Auth: instead of managing its own session, the
+// client just asks Firebase for the current user's ID token on every
+// request, and Supabase's RLS policies verify that token directly.
 const supabaseClient = (typeof window.supabase !== 'undefined')
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      accessToken: async () => {
+        if(!firebaseReady || !firebase.auth().currentUser) return null;
+        return await firebase.auth().currentUser.getIdToken();
+      }
+    })
   : null;
 
 let state = { owners: [] }; // owner: {id, name, count, colorIdx, prefix, chairs:[{code, scanned}]}
-let currentUser = null; // Supabase auth user, or null if signed out
+let currentUser = null; // Firebase auth user, or null if signed out
 
 function uid(){ return Math.random().toString(36).slice(2,9); }
 
@@ -301,7 +328,7 @@ function updateAuthUI(){
   if(currentUser){
     signInBtn.style.display = 'none';
     signedInBox.style.display = 'flex';
-    emailEl.textContent = currentUser.email || currentUser.user_metadata?.full_name || 'Signed in';
+    emailEl.textContent = currentUser.email || currentUser.displayName || 'Signed in';
     hintEl.textContent = 'Backed up to your Google account. Sign in with the same account on another device to restore it.';
   } else {
     signInBtn.style.display = 'inline-block';
@@ -317,7 +344,7 @@ async function pushToSupabase(){
     setSyncStatus('syncing…', false);
     const { error } = await supabaseClient
       .from(BACKUP_TABLE)
-      .upsert({ user_id: currentUser.id, data: state, updated_at: new Date().toISOString() });
+      .upsert({ user_id: currentUser.uid, data: state, updated_at: new Date().toISOString() });
     if(error) throw error;
     setSyncStatus('backed up', true);
   }catch(e){
@@ -331,7 +358,7 @@ async function pullFromSupabase(){
   const { data, error } = await supabaseClient
     .from(BACKUP_TABLE)
     .select('data')
-    .eq('user_id', currentUser.id)
+    .eq('user_id', currentUser.uid)
     .maybeSingle();
   if(error) throw error;
   return data ? data.data : null;
@@ -381,31 +408,21 @@ async function loadLocal(){
 }
 
 async function initAuth(){
-  if(!supabaseClient){
-    console.warn('Supabase client failed to load — cloud backup disabled, local save still works.');
+  if(!supabaseClient || !firebaseReady){
+    console.warn('Firebase/Supabase not configured — cloud backup disabled, local save still works.');
     return;
   }
-  const { data: { session } } = await supabaseClient.auth.getSession();
-  currentUser = session ? session.user : null;
-  updateAuthUI();
 
-  if(currentUser){
-    try{
-      const remote = await pullFromSupabase();
-      if(remote) state = remote; // account's cloud copy wins on sign-in
-    }catch(e){ console.error('initial pull failed', e); }
-  }
-  renderAll();
-
-  supabaseClient.auth.onAuthStateChange(async (event, session) => {
-    currentUser = session ? session.user : null;
+  firebase.auth().onAuthStateChanged(async (user) => {
+    const wasSignedOut = !currentUser;
+    currentUser = user || null;
     updateAuthUI();
-    if(event === 'SIGNED_IN' && currentUser){
+    if(user && wasSignedOut){
       try{
         const remote = await pullFromSupabase();
-        if(remote) state = remote;
+        if(remote) state = remote; // account's cloud copy wins on sign-in
         await window.storage.set(STORAGE_KEY, JSON.stringify(state), false);
-      }catch(e){ console.error(e); }
+      }catch(e){ console.error('initial pull failed', e); }
       renderAll();
       pushToSupabase();
     }
@@ -758,17 +775,17 @@ document.getElementById('stopScanBtn').addEventListener('click', stopScanner);
 document.getElementById('printBtn').addEventListener('click', ()=> window.print());
 
 document.getElementById('googleSignInBtn').addEventListener('click', async ()=>{
-  if(!supabaseClient){ alert('Cloud backup could not load. Check your connection and reload.'); return; }
-  const { error } = await supabaseClient.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.href }
-  });
-  if(error) alert('Sign-in failed: ' + error.message);
+  if(!firebaseReady){ alert('Firebase isn\'t configured yet — add your firebaseConfig values first.'); return; }
+  try{
+    await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
+  }catch(e){
+    alert('Sign-in failed: ' + e.message);
+  }
 });
 
 document.getElementById('signOutBtn').addEventListener('click', async ()=>{
-  if(!supabaseClient) return;
-  await supabaseClient.auth.signOut();
+  if(!firebaseReady) return;
+  await firebase.auth().signOut();
   currentUser = null;
   updateAuthUI();
 });
