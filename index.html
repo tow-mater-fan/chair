@@ -500,10 +500,6 @@ function buildTagSVG(chair, owner, colorHex){
     </svg>
   `;
 }
-      <text class="owner" x="${midX}" y="${ownerY}">${escapeHtml(owner.name)}</text>
-    </svg>
-  `;
-}
 
 function ticketHTML(chair, owner){
   const colorHex = COLORS[owner.colorIdx % COLORS.length];
