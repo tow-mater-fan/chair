@@ -85,7 +85,7 @@
   .tip-box strong{color:var(--ink);}
 
   .tag-toolbar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:18px; }
-  .tag-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(420px,1fr)); gap:16px; }
+  .tag-grid{ display:grid; grid-template-columns:1fr; gap:14px; }
 
   .ziptag{
     background:var(--paper-light); border-radius:4px; overflow:hidden;
@@ -151,7 +151,8 @@
     main{padding:0; max-width:none;}
     .panel{display:none !important;}
     #tagsPrint{display:block !important;}
-    .tag-grid{grid-template-columns:repeat(2, 1fr); gap:16px;}
+    @page{ size: landscape; margin: 12mm; }
+    .tag-grid{grid-template-columns:1fr; gap:12mm;}
     .ziptag{break-inside:avoid;}
   }
   #tagsPrint{display:none;}
@@ -465,18 +466,21 @@ function renderSetup(){
 // the flag/head, so there's no seam where two separate pieces meet. The
 // barb is the same glue-free lock cereal-box tuck flaps use; the two
 // dashed lines are letter-fold lines that triple the strip's thickness.
+// The shaft runs almost the full landscape width so it comfortably wraps a
+// real chair rung; only the flag (QR + code) at the end is fixed-size.
 function buildTagSVG(chair, owner, colorHex){
-  const W = 480, H = 170;
+  const HEAD_W = 180;                        // fixed-size flag/QR block
+  const W = 1400, H = 170;                   // total tag: mostly shaft
   const topY = 40, botY = 130;              // shaft (neck) edges
   const flare = 18;                          // barb shoulder flare
   const barbX = 34, neckX = 60;              // tip -> shoulder -> neck
-  const joinX = 300;                         // where shaft meets the flag
+  const joinX = W - HEAD_W;                  // where shaft meets the flag
   const thirdY1 = topY + (botY - topY)/3;
   const thirdY2 = topY + 2*(botY - topY)/3;
-  const slotW = 11, slotH = 84, slotX = 316, slotY = (H - slotH)/2;
-  const qrSize = 92, qrX = 345, qrY = 14;
+  const slotW = 11, slotH = 84, slotX = joinX + 16, slotY = (H - slotH)/2;
+  const qrSize = 92, qrX = joinX + (HEAD_W - qrSize)/2, qrY = 14;
   const codeY = 132, ownerY = 151;
-  const midX = (300 + W)/2 + 6;
+  const midX = joinX + HEAD_W/2;
 
   const d = `M 0 85
     L ${barbX} ${topY - flare} L ${neckX} ${topY} L ${joinX} ${topY}
@@ -492,6 +496,10 @@ function buildTagSVG(chair, owner, colorHex){
       <rect class="hole" x="${slotX}" y="${slotY}" width="${slotW}" height="${slotH}" rx="2" />
       <image class="qrimg" data-code="${chair.code}" x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" />
       <text class="code" x="${midX}" y="${codeY}">${chair.code}</text>
+      <text class="owner" x="${midX}" y="${ownerY}">${escapeHtml(owner.name)}</text>
+    </svg>
+  `;
+}
       <text class="owner" x="${midX}" y="${ownerY}">${escapeHtml(owner.name)}</text>
     </svg>
   `;
