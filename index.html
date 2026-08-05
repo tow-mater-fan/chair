@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chair Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#ddd2ae;
+    --paper-light:#f1e8cd;
+    --ink:#241c14;
+    --ink-soft:#4a3f30;
+    --red:#b23a2e;
+    --brass:#9c7a2d;
+    --teal:#1a6e6e;
+    --line: rgba(36,28,20,0.25);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(36,28,20,0.04) 0, transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(36,28,20,0.04) 0, transparent 40%);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+  }
+  .wordmark{ font-family:'Special Elite', monospace; letter-spacing:2px; }
+  header{
+    padding:28px 20px 18px;
+    text-align:center;
+    border-bottom:3px solid var(--ink);
+    background: repeating-linear-gradient(90deg, transparent, transparent 22px, rgba(36,28,20,0.05) 22px, rgba(36,28,20,0.05) 23px);
+  }
+  header h1{ font-size:clamp(28px, 6vw, 44px); margin:0; color:var(--ink); }
+  header p{ margin:6px 0 0; color:var(--ink-soft); font-size:14px; letter-spacing:1px; text-transform:uppercase; }
+  nav{ display:flex; justify-content:center; gap:0; background:var(--ink); position:sticky; top:0; z-index:10; }
+  nav button{
+    flex:1; max-width:220px; background:transparent; border:none; color:#cbb98a;
+    font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:13px; letter-spacing:1px;
+    text-transform:uppercase; padding:14px 8px; cursor:pointer; border-bottom:4px solid transparent; transition:all .15s;
+  }
+  nav button.active{ color:var(--paper-light); border-bottom:4px solid var(--red); background:rgba(255,255,255,0.05); }
+  main{ max-width:920px; margin:0 auto; padding:24px 16px 80px; }
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .card{ background:var(--paper-light); border:1px solid var(--line); border-radius:4px; padding:18px; margin-bottom:16px; box-shadow: 0 1px 0 rgba(36,28,20,0.06); }
+  .stat-strip{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+  .stat{ flex:1; min-width:130px; background:var(--ink); color:var(--paper-light); padding:14px 16px; border-radius:4px; text-align:center; }
+  .stat .n{ font-family:'IBM Plex Mono', monospace; font-size:28px; font-weight:700; display:block; color:#e7d9ab; }
+  .stat .l{ font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#cbb98a; }
+  .add-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .add-row input{ font-family:'IBM Plex Sans', sans-serif; padding:10px 12px; border:2px solid var(--ink); border-radius:3px; background:#fff; font-size:15px; }
+  .add-row input[name="oname"]{flex:2; min-width:140px;}
+  .add-row input[name="ocount"]{flex:1; min-width:70px;}
+  button.primary{ background:var(--red); color:#fff; border:none; padding:11px 20px; border-radius:3px; font-weight:600; font-size:15px; cursor:pointer; font-family:'IBM Plex Sans', sans-serif; }
+  button.primary:hover{filter:brightness(1.08);}
+  button.primary:disabled{opacity:.4; cursor:default;}
+  button.ghost{ background:transparent; border:1px solid var(--ink); color:var(--ink); padding:6px 12px; border-radius:3px; cursor:pointer; font-size:13px; font-family:'IBM Plex Sans', sans-serif; }
+  button.teal{ background:var(--teal); color:#fff; border:none; padding:11px 18px; border-radius:3px; font-weight:600; cursor:pointer; font-family:'IBM Plex Sans', sans-serif; }
+
+  .owner-row{ display:flex; align-items:center; gap:12px; padding:12px 6px; border-bottom:1px dashed var(--line); flex-wrap:wrap; }
+  .owner-row:last-child{border-bottom:none;}
+  .swatch{ width:16px;height:16px;border-radius:50%;flex-shrink:0; border:2px solid var(--ink); }
+  .owner-row .name{font-weight:600; flex:1;}
+  .owner-row .prefix{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--ink-soft); }
+  .owner-row .count-edit{ display:flex;align-items:center;gap:6px; }
+  .owner-row input[type=number]{ width:56px; padding:6px; border:1px solid var(--ink); border-radius:3px; font-family:'IBM Plex Mono', monospace; }
+  .empty{ text-align:center; padding:30px 16px; color:var(--ink-soft); font-style:italic; }
+  .hint{ font-size:13px; color:var(--ink-soft); line-height:1.5; margin-top:6px; }
+  .tip-box{
+    background: rgba(156,122,45,0.12);
+    border:1px solid var(--brass);
+    border-radius:4px;
+    padding:12px 14px;
+    font-size:13px;
+    line-height:1.6;
+    color:var(--ink-soft);
+    margin-bottom:16px;
+  }
+  .tip-box strong{color:var(--ink);}
+
+  .tag-toolbar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:18px; }
+  .tag-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(360px,1fr)); gap:14px; }
+
+  .ziptag{
+    position:relative; display:flex; align-items:stretch;
+    background:var(--paper-light); border-radius:4px; overflow:hidden;
+    break-inside:avoid; page-break-inside:avoid;
+  }
+  .ziptag svg.strip{ flex-shrink:0; display:block; }
+  .ziptag svg.strip .cut{ fill:var(--paper-light); stroke:#000; stroke-width:1; }
+  .ziptag svg.strip .hole{ fill:#fff; stroke:#000; stroke-width:1; }
+  .ziptag svg.strip .fold{ fill:none; stroke:var(--ink-soft); stroke-width:1; stroke-dasharray:4 3; }
+  .ziptag .head{
+    position:relative; flex-shrink:0; width:150px;
+    border:1.5px solid #000; border-left:none;
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px;
+  }
+  .ziptag .bar{ width:7px; align-self:stretch; border-radius:2px; flex-shrink:0; }
+  .ziptag canvas.qr{ width:52px; height:52px; flex-shrink:0; background:#fff; border-radius:3px; }
+  .ziptag .info{flex:1; min-width:0;}
+  .ziptag .code{ font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:16px; letter-spacing:0.5px; display:block; }
+  .ziptag .owner{ font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
+  .ziptag .stamp{ font-family:'Special Elite', monospace; font-size:8px; color:var(--ink-soft); opacity:0.7; display:block; margin-top:2px;}
+
+  .progress-wrap{ background:var(--ink); border-radius:6px; padding:16px 18px; margin-bottom:20px; color:var(--paper-light); }
+  .progress-wrap .top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+  .progress-wrap .top .big{ font-family:'IBM Plex Mono', monospace; font-size:26px; font-weight:700; color:#e7d9ab; }
+  .bar-track{ height:10px; background:rgba(255,255,255,0.15); border-radius:5px; overflow:hidden; }
+  .bar-fill{ height:100%; background:linear-gradient(90deg,#c96a4b,#e7a24b); transition:width .25s; }
+
+  .scanner-card{ background:var(--ink); color:var(--paper-light); border-radius:6px; padding:16px; margin-bottom:18px; }
+  .scanner-card h3{ margin:0 0 10px; font-family:'IBM Plex Mono', monospace; font-size:14px; letter-spacing:1px; text-transform:uppercase; color:#e7d9ab; }
+  .scanner-video-wrap{
+    position:relative; width:100%; max-width:340px; margin:0 auto 12px;
+    background:#000; border-radius:6px; overflow:hidden; aspect-ratio:1/1; display:none;
+  }
+  .scanner-video-wrap.active{display:block;}
+  .scanner-video-wrap video{ width:100%; height:100%; object-fit:cover; }
+  .scanner-video-wrap .reticle{
+    position:absolute; inset:15%; border:2px solid var(--brass); border-radius:8px; pointer-events:none;
+  }
+  .scanner-controls{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-bottom:10px; }
+  .manual-scan{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-bottom:10px; }
+  .manual-scan input{
+    font-family:'IBM Plex Mono', monospace; padding:9px 10px; border-radius:3px; border:none; font-size:14px;
+    text-transform:uppercase; width:160px;
+  }
+  .scan-log{ font-family:'IBM Plex Mono', monospace; font-size:12px; max-height:110px; overflow-y:auto; padding:8px 10px; background:rgba(255,255,255,0.06); border-radius:4px; }
+  .scan-log div{ padding:2px 0; }
+  .scan-log .ok{color:#8fd19e;}
+  .scan-log .dup{color:#e7c26a;}
+  .scan-log .bad{color:#e08383;}
+  .scanner-note{ font-size:12px; color:#cbb98a; text-align:center; margin-top:6px; }
+
+  .sort-card{ background:var(--paper-light); border:1px solid var(--line); border-radius:4px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .sort-card.done{opacity:0.55;}
+  .sort-card .swatch{width:22px;height:22px;}
+  .sort-card .meta{flex:1; min-width:120px;}
+  .sort-card .meta .name{font-weight:700; font-size:16px;}
+  .sort-card .meta .sub{ font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--ink-soft); }
+  .sort-card .mini-bar{ width:100%; height:6px; background:rgba(36,28,20,0.12); border-radius:3px; margin-top:6px; overflow:hidden; }
+  .sort-card .mini-fill{height:100%; background:var(--brass);}
+  .counter{ display:flex; align-items:center; gap:10px; }
+  .counter button{ width:40px;height:40px; border-radius:50%; border:2px solid var(--ink); background:var(--paper); font-size:20px; font-weight:700; cursor:pointer; line-height:1; color: var(--ink); }
+  .counter button:active{transform:scale(0.94);}
+  .counter button:disabled{opacity:0.3; cursor:default;}
+  .counter .val{ font-family:'IBM Plex Mono', monospace; font-size:18px; font-weight:700; min-width:56px; text-align:center; }
+  .footer-actions{ display:flex; justify-content:center; margin-top:20px; }
+  .celebrate{ text-align:center; padding:20px; font-family:'Special Elite', monospace; font-size:18px; color:var(--red); }
+
+  @media print{
+    header, nav, .tag-toolbar, .no-print{display:none !important;}
+    body{background:#fff;}
+    main{padding:0; max-width:none;}
+    .panel{display:none !important;}
+    #tagsPrint{display:block !important;}
+    .tag-grid{grid-template-columns:repeat(2, 1fr); gap:14px;}
+    .ziptag{break-inside:avoid;}
+  }
+  #tagsPrint{display:none;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 class="wordmark">🎫 Chair Check</h1>
+  <p>tag it · scan it · sort it home</p>
+</header>
+
+<nav class="no-print">
+  <button data-tab="setup" class="active">1. Setup</button>
+  <button data-tab="tags">2. Print Tags</button>
+  <button data-tab="sort">3. Sort Mode</button>
+</nav>
+
+<main>
+
+  <!-- SETUP -->
+  <section class="panel active" id="panel-setup">
+    <div class="stat-strip">
+      <div class="stat"><span class="n" id="statOwners">0</span><span class="l">Friends</span></div>
+      <div class="stat"><span class="n" id="statChairs">0</span><span class="l">Chairs Total</span></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Cloud backup</h3>
+      <p class="hint" style="margin-top:0;">Every change here is automatically backed up to Supabase. Save this Backup ID somewhere — you can use it to restore your chair list on another phone or browser.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <code id="backupId" style="font-family:'IBM Plex Mono',monospace; background:#fff; border:1px solid var(--ink); border-radius:3px; padding:6px 10px; font-size:12px;">loading…</code>
+        <button class="ghost" id="copyBackupIdBtn">Copy ID</button>
+        <span id="syncStatus" class="hint" style="margin:0;">●&nbsp;checking…</span>
+      </div>
+      <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+        <input type="text" id="restoreId" placeholder="Paste a Backup ID to restore" style="flex:1; min-width:200px; padding:9px 10px; border:2px solid var(--ink); border-radius:3px; font-family:'IBM Plex Mono',monospace; font-size:13px;">
+        <button class="ghost" id="restoreBtn">Restore</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Add a friend's chairs</h3>
+      <div class="add-row">
+        <input type="text" name="oname" id="ownerName" placeholder="Friend's name (e.g. Sam Ortiz)">
+        <input type="number" name="ocount" id="ownerCount" placeholder="# chairs" min="1" value="4">
+        <button class="primary" id="addOwnerBtn">Add</button>
+      </div>
+      <p class="hint">Each chair gets a code like <strong>SAM-01</strong>, plus its own QR code and a color, so you can sort by scan, code, or color.</p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Friends & chairs</h3>
+      <div id="ownerList"><div class="empty">No friends added yet — add your first one above.</div></div>
+    </div>
+  </section>
+
+  <!-- TAGS -->
+  <section class="panel" id="panel-tags">
+    <div class="tip-box">
+      <strong>Built for ordinary printer paper — same lock cereal boxes use.</strong>
+      <br>1. <strong>Cut</strong> around the solid outline, including the small slot near the flag (cut it out so it's an open hole).
+      <br>2. <strong>Fold</strong> the strip along both dashed lines like folding a letter into thirds — one thin sheet becomes a strong, triple-thick strip.
+      <br>3. <strong>Wrap</strong> it around a chair rung or spindle and push the arrow-shaped tip through the slot. The shoulders flex through, then pop open and catch behind the slot — the same glue-free lock used on tuck-top boxes — so it only tightens and won't shake loose.
+      <br><span class="hint" style="margin-top:8px; display:block;">Solid line = cut · dashed line = fold.</span>
+    </div>
+    <div class="tag-toolbar">
+      <p class="hint" style="margin:0;">Each tag also has a scannable QR code — use Sort Mode's camera scanner afterward for near-instant sorting, no reading required.</p>
+      <button class="primary" id="printBtn">Print tags</button>
+    </div>
+    <div class="tag-grid" id="tagGrid"></div>
+  </section>
+
+  <!-- SORT -->
+  <section class="panel" id="panel-sort">
+    <div class="progress-wrap">
+      <div class="top">
+        <span>Sorted so far</span>
+        <span class="big" id="sortBig">0 / 0</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="sortBar" style="width:0%"></div></div>
+    </div>
+
+    <div class="scanner-card no-print">
+      <h3>📷 QR Scanner</h3>
+      <div class="scanner-controls">
+        <button class="teal" id="startScanBtn">Start camera scan</button>
+        <button class="ghost" id="stopScanBtn" style="display:none; color:#f1e8cd; border-color:#f1e8cd;">Stop</button>
+      </div>
+      <div class="scanner-video-wrap" id="videoWrap">
+        <video id="scanVideo" playsinline muted></video>
+        <div class="reticle"></div>
+      </div>
+      <div class="manual-scan">
+        <input type="text" id="manualCode" placeholder="or type code, e.g. SAM-01">
+        <button class="ghost" style="color:#f1e8cd; border-color:#f1e8cd;" id="manualScanBtn">Mark sorted</button>
+      </div>
+      <div class="scan-log" id="scanLog"><div>Scan a tag or type a code above to mark a chair sorted.</div></div>
+      <p class="scanner-note">If your browser blocks the camera here, this file still works fully offline — just save it and open it directly in your phone's browser.</p>
+    </div>
+
+    <div id="sortList"></div>
+    <div class="footer-actions no-print">
+      <button class="ghost" id="resetSortBtn">Reset all counts to 0</button>
+    </div>
+  </section>
+
+</main>
+
+<div id="tagsPrint">
+  <div class="tag-grid" id="tagGridPrint"></div>
+</div>
+
+<canvas id="scanCanvas" style="display:none;"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<script>
+const STORAGE_KEY = 'chaircheck:data:v2';
+const SESSION_KEY = 'chaircheck:backup-id';
+const COLORS = ['#C0392B','#2471A3','#1E8449','#B7950B','#7D3C98','#CA6F1E','#117864','#943126','#2E4053','#AF601A','#6C3483','#196F3D'];
+
+const SUPABASE_URL = 'https://icckllvlopvsbbcfiiml.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_BlqQGzwRRO6ToiX5xcGuKA_DfsXI3fA';
+const BACKUP_TABLE = 'chair_check_backups';
+
+let state = { owners: [] }; // owner: {id, name, count, colorIdx, prefix, chairs:[{code, scanned}]}
+let backupId = null;
+
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function genBackupId(){
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
+    const r = Math.random()*16|0;
+    return (c==='x'?r:(r&0x3|0x8)).toString(16);
+  });
+}
+
+async function getBackupId(){
+  try{
+    const res = await window.storage.get(SESSION_KEY, false);
+    if(res && res.value) return res.value;
+  }catch(e){ /* not set yet */ }
+  const id = genBackupId();
+  try{ await window.storage.set(SESSION_KEY, id, false); }catch(e){}
+  return id;
+}
+
+function setSyncStatus(text, ok){
+  const el = document.getElementById('syncStatus');
+  if(!el) return;
+  el.textContent = (ok ? '● ' : '○ ') + text;
+  el.style.color = ok ? '#1E8449' : 'var(--ink-soft)';
+}
+
+async function pushToSupabase(){
+  if(!backupId) return;
+  try{
+    setSyncStatus('syncing…', false);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${BACKUP_TABLE}?on_conflict=session_id`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({ session_id: backupId, data: state, updated_at: new Date().toISOString() })
+    });
+    if(!res.ok) throw new Error('sync failed: ' + res.status);
+    setSyncStatus('backed up', true);
+  }catch(e){
+    console.error('Supabase sync failed', e);
+    setSyncStatus('backup failed — saved locally only', false);
+  }
+}
+
+async function pullFromSupabase(id){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${BACKUP_TABLE}?session_id=eq.${encodeURIComponent(id)}&select=data`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if(!res.ok) throw new Error('restore failed: ' + res.status);
+  const rows = await res.json();
+  if(!rows.length) throw new Error('no backup found for that ID');
+  return rows[0].data;
+}
+
+function genPrefix(name, existingPrefixes){
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  let base;
+  if(words.length > 1){
+    base = words.slice(0,3).map(w=>w[0]).join('').toUpperCase();
+    if(base.length < 3) base = (base + words[0].slice(1)).slice(0,3).toUpperCase();
+  } else {
+    base = (words[0] || 'CHR').slice(0,3).toUpperCase();
+  }
+  let candidate = base, n = 2;
+  while(existingPrefixes.has(candidate)){ candidate = base + n; n++; }
+  return candidate;
+}
+
+function padNum(n, count){ const width = count > 99 ? 3 : 2; return String(n).padStart(width,'0'); }
+
+function buildChairs(prefix, count){
+  return Array.from({length: count}, (_, i) => ({ code: `${prefix}-${padNum(i+1, count)}`, scanned:false }));
+}
+
+function resizeChairs(owner, newCount){
+  const fresh = buildChairs(owner.prefix, newCount);
+  const oldChairs = owner.chairs || [];
+  for(let i=0; i<Math.min(fresh.length, oldChairs.length); i++){
+    fresh[i].scanned = oldChairs[i].scanned;
+  }
+  owner.chairs = fresh;
+  owner.count = newCount;
+}
+
+async function save(){
+  try{ await window.storage.set(STORAGE_KEY, JSON.stringify(state), false); }
+  catch(e){ console.error('save failed', e); }
+  pushToSupabase();
+}
+
+async function load(){
+  backupId = await getBackupId();
+  const idEl = document.getElementById('backupId');
+  if(idEl) idEl.textContent = backupId;
+
+  try{
+    const res = await window.storage.get(STORAGE_KEY, false);
+    if(res && res.value){ state = JSON.parse(res.value); }
+  }catch(e){ /* no data yet */ }
+  renderAll();
+  pushToSupabase();
+}
+
+function renderAll(){ renderSetup(); renderTags(); renderSort(); }
+
+function renderSetup(){
+  document.getElementById('statOwners').textContent = state.owners.length;
+  const totalChairs = state.owners.reduce((s,o)=>s+o.count,0);
+  document.getElementById('statChairs').textContent = totalChairs;
+
+  const list = document.getElementById('ownerList');
+  if(state.owners.length === 0){
+    list.innerHTML = '<div class="empty">No friends added yet — add your first one above.</div>';
+    return;
+  }
+  list.innerHTML = state.owners.map(o => `
+    <div class="owner-row" data-id="${o.id}">
+      <div class="swatch" style="background:${COLORS[o.colorIdx % COLORS.length]}"></div>
+      <div class="name">${escapeHtml(o.name)}</div>
+      <div class="prefix">${o.prefix}-01…${o.prefix}-${padNum(o.count,o.count)}</div>
+      <div class="count-edit">
+        <input type="number" min="1" value="${o.count}" data-action="editcount" data-id="${o.id}">
+        <button class="ghost" data-action="remove" data-id="${o.id}">Remove</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Barbed "slit-lock" tab, the same mechanism folding cartons use for
+// glue-free tuck closures and modular origami uses for pocket-and-tab
+// joints: a shouldered arrowhead is pushed through a slit sized to the
+// narrower neck, and the wider shoulders catch behind it so it can't
+// slide back out. Combined with the letter-fold (below) for a stiff,
+// multi-ply strip, one push locks it — no threading or fold-back needed.
+function stripSVG(width, height){
+  const midY = height/2;
+  const topY = 24, botY = height - 24;          // shaft (neck) edges
+  const flare = 11;                              // how far the barb shoulders flare out
+  const barbX = 20, neckX = 36;                   // tip -> shoulder -> neck
+  const headJoinX = width - 30;
+  const thirdY1 = topY + (botY - topY)/3;
+  const thirdY2 = topY + 2*(botY - topY)/3;
+  const slotH = (botY - topY) + 6, slotW = 10;
+  const slotX = width - 46, slotY = midY - slotH/2;
+
+  const d = `M 0 ${midY}
+    L ${barbX} ${topY - flare} L ${neckX} ${topY} L ${headJoinX} ${topY}
+    L ${headJoinX} ${botY} L ${neckX} ${botY} L ${barbX} ${botY + flare} Z`;
+
+  return `
+    <svg class="strip" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+      <path class="cut" d="${d}" />
+      <line class="fold" x1="${neckX}" y1="${thirdY1}" x2="${headJoinX}" y2="${thirdY1}" />
+      <line class="fold" x1="${neckX}" y1="${thirdY2}" x2="${headJoinX}" y2="${thirdY2}" />
+      <rect class="hole" x="${slotX}" y="${slotY}" width="${slotW}" height="${slotH}" rx="1.5" />
+    </svg>
+  `;
+}
+
+function ticketHTML(chair, owner){
+  const stripW = 260, stripH = 110;
+  return `
+    <div class="ziptag">
+      ${stripSVG(stripW, stripH)}
+      <div class="head">
+        <div class="bar" style="background:${COLORS[owner.colorIdx % COLORS.length]}"></div>
+        <canvas class="qr" data-code="${chair.code}" width="52" height="52"></canvas>
+        <div class="info">
+          <span class="code">${chair.code}</span>
+          <span class="owner">${escapeHtml(owner.name)}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderTags(){
+  const grid = document.getElementById('tagGrid');
+  const gridPrint = document.getElementById('tagGridPrint');
+  if(state.owners.length === 0){
+    grid.innerHTML = '<div class="empty">Add friends in Setup first, then your printable tags will show up here.</div>';
+    gridPrint.innerHTML = '';
+    return;
+  }
+  let html = '';
+  state.owners.forEach(o => { o.chairs.forEach(chair => { html += ticketHTML(chair, o); }); });
+  grid.innerHTML = html;
+  gridPrint.innerHTML = html;
+  drawQRCodes();
+}
+
+function drawQRCodes(){
+  if(typeof QRious === 'undefined') return;
+  document.querySelectorAll('canvas.qr').forEach(canvas => {
+    try{
+      new QRious({ element: canvas, value: canvas.dataset.code, size: 56, padding: 2, level: 'M' });
+    }catch(e){ /* ignore draw errors */ }
+  });
+}
+
+function renderSort(){
+  const totalChairs = state.owners.reduce((s,o)=>s+o.count,0);
+  const totalScanned = state.owners.reduce((s,o)=>s + o.chairs.filter(c=>c.scanned).length, 0);
+  document.getElementById('sortBig').textContent = `${totalScanned} / ${totalChairs}`;
+  document.getElementById('sortBar').style.width = totalChairs ? `${(totalScanned/totalChairs*100).toFixed(1)}%` : '0%';
+
+  const list = document.getElementById('sortList');
+  if(state.owners.length === 0){
+    list.innerHTML = '<div class="empty">Add friends in Setup first.</div>';
+    return;
+  }
+  let html = state.owners.map(o=>{
+    const scanned = o.chairs.filter(c=>c.scanned).length;
+    const pct = o.count ? (scanned/o.count*100) : 0;
+    const done = scanned >= o.count;
+    return `
+      <div class="sort-card ${done?'done':''}" data-id="${o.id}">
+        <div class="swatch" style="background:${COLORS[o.colorIdx % COLORS.length]}"></div>
+        <div class="meta">
+          <div class="name">${escapeHtml(o.name)} ${done?'✓':''}</div>
+          <div class="sub">${scanned} / ${o.count} chairs sorted</div>
+          <div class="mini-bar"><div class="mini-fill" style="width:${pct}%; background:${COLORS[o.colorIdx % COLORS.length]}"></div></div>
+        </div>
+        <div class="counter no-print">
+          <button data-action="dec" data-id="${o.id}" ${scanned<=0?'disabled':''}>–</button>
+          <span class="val">${scanned}</span>
+          <button data-action="inc" data-id="${o.id}" ${scanned>=o.count?'disabled':''}>+</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if(totalChairs > 0 && totalScanned === totalChairs){
+    html += `<div class="celebrate">All ${totalChairs} chairs sorted. Nice work! 🎉</div>`;
+  }
+  list.innerHTML = html;
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function logScan(msg, cls){
+  const log = document.getElementById('scanLog');
+  const row = document.createElement('div');
+  row.className = cls;
+  row.textContent = msg;
+  log.prepend(row);
+  while(log.children.length > 8) log.removeChild(log.lastChild);
+}
+
+function beep(freq){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = freq;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.18);
+  }catch(e){ /* audio not available, ignore */ }
+}
+
+async function handleScanCode(rawCode){
+  const code = (rawCode || '').trim().toUpperCase();
+  if(!code) return;
+  for(const owner of state.owners){
+    const chair = owner.chairs.find(c => c.code === code);
+    if(chair){
+      if(chair.scanned){
+        logScan(`↺ ${code} already sorted (${owner.name})`, 'dup');
+        beep(300);
+      } else {
+        chair.scanned = true;
+        const scanned = owner.chairs.filter(c=>c.scanned).length;
+        logScan(`✓ ${code} → ${owner.name} (${scanned}/${owner.count})`, 'ok');
+        beep(880);
+        await save();
+        renderSort();
+      }
+      return;
+    }
+  }
+  logScan(`✕ ${code} not recognized`, 'bad');
+  beep(220);
+}
+
+// --- tab nav ---
+document.querySelectorAll('nav button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab !== 'sort') stopScanner();
+  });
+});
+
+// --- setup events ---
+document.getElementById('addOwnerBtn').addEventListener('click', async ()=>{
+  const nameInput = document.getElementById('ownerName');
+  const countInput = document.getElementById('ownerCount');
+  const name = nameInput.value.trim();
+  const count = parseInt(countInput.value, 10);
+  if(!name || !count || count < 1){ nameInput.focus(); return; }
+  const existingPrefixes = new Set(state.owners.map(o=>o.prefix));
+  const prefix = genPrefix(name, existingPrefixes);
+  const colorIdx = state.owners.length;
+  const chairs = buildChairs(prefix, count);
+  state.owners.push({ id: uid(), name, count, colorIdx, prefix, chairs });
+  nameInput.value = '';
+  countInput.value = '4';
+  nameInput.focus();
+  await save();
+  renderAll();
+});
+
+document.getElementById('ownerName').addEventListener('keydown', e=>{
+  if(e.key === 'Enter') document.getElementById('addOwnerBtn').click();
+});
+
+document.getElementById('ownerList').addEventListener('click', async (e)=>{
+  const btn = e.target.closest('button[data-action="remove"]');
+  if(!btn) return;
+  state.owners = state.owners.filter(o=>o.id !== btn.dataset.id);
+  await save();
+  renderAll();
+});
+
+document.getElementById('ownerList').addEventListener('change', async (e)=>{
+  const input = e.target.closest('input[data-action="editcount"]');
+  if(!input) return;
+  const owner = state.owners.find(o=>o.id===input.dataset.id);
+  let val = parseInt(input.value,10);
+  if(!val || val < 1) val = 1;
+  resizeChairs(owner, val);
+  await save();
+  renderAll();
+});
+
+// --- sort manual counters ---
+document.getElementById('sortList').addEventListener('click', async (e)=>{
+  const btn = e.target.closest('button[data-action]');
+  if(!btn) return;
+  const owner = state.owners.find(o=>o.id===btn.dataset.id);
+  if(!owner) return;
+  if(btn.dataset.action === 'inc'){
+    const next = owner.chairs.find(c=>!c.scanned);
+    if(next) next.scanned = true;
+  }
+  if(btn.dataset.action === 'dec'){
+    const last = [...owner.chairs].reverse().find(c=>c.scanned);
+    if(last) last.scanned = false;
+  }
+  await save();
+  renderSort();
+});
+
+document.getElementById('resetSortBtn').addEventListener('click', async ()=>{
+  if(!confirm('Reset all sorted counts back to 0?')) return;
+  state.owners.forEach(o => o.chairs.forEach(c => c.scanned = false));
+  await save();
+  renderSort();
+  document.getElementById('scanLog').innerHTML = '<div>Scan a tag or type a code above to mark a chair sorted.</div>';
+});
+
+// --- manual scan entry ---
+document.getElementById('manualScanBtn').addEventListener('click', ()=>{
+  const input = document.getElementById('manualCode');
+  handleScanCode(input.value);
+  input.value = '';
+  input.focus();
+});
+document.getElementById('manualCode').addEventListener('keydown', e=>{
+  if(e.key === 'Enter') document.getElementById('manualScanBtn').click();
+});
+
+// --- camera scanner ---
+let scanStream = null;
+let scanRAF = null;
+
+async function startScanner(){
+  const wrap = document.getElementById('videoWrap');
+  const video = document.getElementById('scanVideo');
+  const canvas = document.getElementById('scanCanvas');
+  const ctx = canvas.getContext('2d');
+
+  if(typeof jsQR === 'undefined'){
+    logScan('Scanner library failed to load — use the manual code field instead.', 'bad');
+    return;
+  }
+
+  try{
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+  }catch(e){
+    logScan('Camera unavailable here — use the manual code field, or open this file directly in your phone browser.', 'bad');
+    return;
+  }
+
+  video.srcObject = scanStream;
+  await video.play();
+  wrap.classList.add('active');
+  document.getElementById('startScanBtn').style.display = 'none';
+  document.getElementById('stopScanBtn').style.display = 'inline-block';
+
+  let lastCode = '';
+  let lastTime = 0;
+
+  function tick(){
+    if(video.readyState === video.HAVE_ENOUGH_DATA){
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const result = jsQR(imageData.data, imageData.width, imageData.height);
+      if(result && result.data){
+        const now = Date.now();
+        if(result.data !== lastCode || now - lastTime > 1500){
+          lastCode = result.data;
+          lastTime = now;
+          handleScanCode(result.data);
+        }
+      }
+    }
+    scanRAF = requestAnimationFrame(tick);
+  }
+  scanRAF = requestAnimationFrame(tick);
+}
+
+function stopScanner(){
+  if(scanRAF) cancelAnimationFrame(scanRAF);
+  scanRAF = null;
+  if(scanStream){ scanStream.getTracks().forEach(t=>t.stop()); scanStream = null; }
+  document.getElementById('videoWrap').classList.remove('active');
+  document.getElementById('startScanBtn').style.display = 'inline-block';
+  document.getElementById('stopScanBtn').style.display = 'none';
+}
+
+document.getElementById('startScanBtn').addEventListener('click', startScanner);
+document.getElementById('stopScanBtn').addEventListener('click', stopScanner);
+
+document.getElementById('printBtn').addEventListener('click', ()=> window.print());
+
+document.getElementById('copyBackupIdBtn').addEventListener('click', async ()=>{
+  try{
+    await navigator.clipboard.writeText(backupId);
+    const btn = document.getElementById('copyBackupIdBtn');
+    const old = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(()=>btn.textContent = old, 1500);
+  }catch(e){ alert('Backup ID: ' + backupId); }
+});
+
+document.getElementById('restoreBtn').addEventListener('click', async ()=>{
+  const input = document.getElementById('restoreId');
+  const id = input.value.trim();
+  if(!id) return;
+  if(!confirm('Restore will replace everything currently in this app with the backed-up data. Continue?')) return;
+  try{
+    const data = await pullFromSupabase(id);
+    state = data;
+    backupId = id;
+    try{ await window.storage.set(SESSION_KEY, id, false); }catch(e){}
+    document.getElementById('backupId').textContent = id;
+    await save();
+    renderAll();
+    setSyncStatus('restored & backed up', true);
+    input.value = '';
+  }catch(e){
+    alert('Could not restore: ' + e.message);
+  }
+});
+
+load();
+</script>
+
+</body>
+</html>
